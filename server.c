@@ -2,9 +2,12 @@
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <pthread.h>
 
 #define PORT 8080
 #define BACKLOG 10 // maximum number of pending connections in the queue
+
+void* handleConnection(void* arg);
 
 int main(int argc, char* argv[]) {
   int serverFd;
@@ -37,5 +40,37 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 
+  printf("Server listening on port %d\n", PORT);
+
+  // handle connections
+  while (1) {
+    // accept client connection
+    struct sockaddr_in clientAddr;
+    socklen_t clientAddrLen = sizeof(clientAddr);
+    int clientFd;
+
+    if ((clientFd = accept(serverFd, (struct sockaddr*)&clientAddr, &clientAddrLen)) == -1) {
+      perror("accept failed");
+      continue;
+    }
+
+    // create a new thread to handle client request
+    pthread_t thread;
+
+    if (pthread_create(&thread, NULL, handleConnection, (void*)&clientFd)) {
+      perror("thread creation failed");
+      exit(EXIT_FAILURE);
+    }
+
+    if (pthread_detach(thread)) {
+      perror("thread detach failed");
+      exit(EXIT_FAILURE);
+    }
+  }
+
   return 0;
+}
+
+void* handleConnection(void* arg) {
+
 }
