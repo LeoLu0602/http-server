@@ -3,11 +3,14 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <pthread.h>
+#include <unistd.h>
+#include <string.h>
 
 #define PORT 8080
 #define BACKLOG 10 // maximum number of pending connections in the queue
 #define BUF_SIZE 4096 // 4 KB
 
+void parseHttpReq(char* s, char* method, char* path, char* version);
 void* handleClient(void* arg);
 
 int main(int argc, char* argv[]) {
@@ -69,18 +72,41 @@ int main(int argc, char* argv[]) {
     }
   }
 
+  close(serverFd);
+
   return 0;
+}
+
+void parseHttpReq(char* s, char* method, char* path, char* version) {
+  char firstLine[BUF_SIZE];
+  char* newLinePos = strchr(s, '\n');
+  
+  if (newLinePos) {
+    size_t len = newLinePos - s;
+
+    strncpy(firstLine, s, len);
+    firstLine[len] = '\0';
+  } else {
+    // \n not found
+    strcpy(firstLine, s);
+  }
+
+  printf("fist line: %s\n", firstLine);
 }
 
 void* handleClient(void* arg) {
   int bytesRecv;
   int clientFd = *(int*)arg;
   char buf[BUF_SIZE];
+  char method[BUF_SIZE];
+  char path[BUF_SIZE];
+  char version[BUF_SIZE];
 
   if ((bytesRecv = recv(clientFd, buf, sizeof(buf), 0)) == -1) {
     perror("recv failed");
     exit(EXIT_FAILURE);
   }
 
-  printf("%s\n", buf);
+  parseHttpReq(buf, method, path, version);
+  // printf("%s, %s, %s\n", buf, path version);
 }
