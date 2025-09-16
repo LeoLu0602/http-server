@@ -6,22 +6,29 @@
 #include <unistd.h>
 #include <string.h>
 
-#define PORT 8080
 #define BACKLOG 10 // maximum number of pending connections in the queue
 #define BUF_SIZE 4096 // 4 KB
 
-void parseHttpReq(char* s, char* method, char* path, char* version);
+void parseHttpReq(char* s, char parsed[3][BUF_SIZE]);
 void* handleClient(void* arg);
 
 int main(int argc, char* argv[]) {
-  int serverFd;
-  struct sockaddr_in serverAddr; // sockaddr_in: IPv4
+  // check usage
+  if (argc != 2) {
+    perror("usage: ./server <port>\n");
+    exit(EXIT_FAILURE);
+  }
+
+  int port = atoi(argv[1]);
 
   // create server socket
   /* AF_INET: IPv4 Internet protocols
    * SOCK_STREAM: TCP
    * 0: select the default protocol for the given domain and type
   */
+  int serverFd;
+  struct sockaddr_in serverAddr; // sockaddr_in: IPv4
+  
   if ((serverFd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
     perror("socket creation failed");
     exit(EXIT_FAILURE);
@@ -29,7 +36,7 @@ int main(int argc, char* argv[]) {
   
   // config server socket
   serverAddr.sin_family = AF_INET;
-  serverAddr.sin_port = htons(PORT); // endianness
+  serverAddr.sin_port = htons(port); // endianness
   serverAddr.sin_addr.s_addr = INADDR_ANY; // listen for connections from anywhere
 
   // bind socket to port
@@ -44,7 +51,7 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  printf("server listening on port %d\n", PORT);
+  printf("server listening on port %d\n", port);
 
   // handle connections
   while (1) {
@@ -77,36 +84,49 @@ int main(int argc, char* argv[]) {
   return 0;
 }
 
-void parseHttpReq(char* s, char* method, char* path, char* version) {
+
+// assume valid http request
+void parseHttpReq(char* s, char parsed[3][BUF_SIZE]) {
+  printf("%s", s);
+
+  // get first line
   char firstLine[BUF_SIZE];
   char* newLinePos = strchr(s, '\n');
+  size_t len = newLinePos - s;
   
-  if (newLinePos) {
-    size_t len = newLinePos - s;
+  strncpy(firstLine, s, len);
+  firstLine[len] = '\0';
+  printf("first line: %s\n", firstLine);
 
-    strncpy(firstLine, s, len);
-    firstLine[len] = '\0';
-  } else {
-    // \n not found
-    strcpy(firstLine, s);
+  // extract method, path, and version from the first line
+  int row = 0;
+  char* start = firstLine;
+  char* cur = firstLine;
+
+  while (*cur != '\0') {
+    if (*cur == ' ') {
+      *cur = '\0';
+      strcpy(parsed[row++], start);
+      start = cur + 1;
+    }
+
+    ++cur;
   }
-
-  printf("fist line: %s\n", firstLine);
+  
+  strcpy(parsed[row], start);
 }
 
 void* handleClient(void* arg) {
   int bytesRecv;
   int clientFd = *(int*)arg;
   char buf[BUF_SIZE];
-  char method[BUF_SIZE];
-  char path[BUF_SIZE];
-  char version[BUF_SIZE];
+  char parsed[3][BUF_SIZE]; // 3 rows: method, path, and version
 
   if ((bytesRecv = recv(clientFd, buf, sizeof(buf), 0)) == -1) {
     perror("recv failed");
     exit(EXIT_FAILURE);
   }
 
-  parseHttpReq(buf, method, path, version);
-  // printf("%s, %s, %s\n", buf, path version);
+  parseHttpReq(buf, parsed);
+  printf("method: %s\npath: %s\nversion: %s\n", parsed[0], parsed[1], parsed[2]);
 }
