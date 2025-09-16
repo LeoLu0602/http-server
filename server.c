@@ -6,8 +6,9 @@
 
 #define PORT 8080
 #define BACKLOG 10 // maximum number of pending connections in the queue
+#define BUF_SIZE 4096 // 4 KB
 
-void* handleConnection(void* arg);
+void* handleClient(void* arg);
 
 int main(int argc, char* argv[]) {
   int serverFd;
@@ -40,7 +41,7 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  printf("Server listening on port %d\n", PORT);
+  printf("server listening on port %d\n", PORT);
 
   // handle connections
   while (1) {
@@ -57,7 +58,7 @@ int main(int argc, char* argv[]) {
     // create a new thread to handle client request
     pthread_t thread;
 
-    if (pthread_create(&thread, NULL, handleConnection, (void*)&clientFd)) {
+    if (pthread_create(&thread, NULL, handleClient, (void*)&clientFd)) {
       perror("thread creation failed");
       exit(EXIT_FAILURE);
     }
@@ -71,6 +72,15 @@ int main(int argc, char* argv[]) {
   return 0;
 }
 
-void* handleConnection(void* arg) {
+void* handleClient(void* arg) {
+  int bytesRecv;
+  int clientFd = *(int*)arg;
+  char buf[BUF_SIZE];
 
+  if ((bytesRecv = recv(clientFd, buf, sizeof(buf), 0)) == -1) {
+    perror("recv failed");
+    exit(EXIT_FAILURE);
+  }
+
+  printf("%s\n", buf);
 }
