@@ -10,6 +10,7 @@
 #define BUF_SIZE 4096 // 4 KB
 
 void parseHttpReq(char* s, char parsed[3][BUF_SIZE]);
+void* buildHttpRes(char* method, char* path, char* version);
 void* handleClient(void* arg);
 
 int main(int argc, char* argv[]) {
@@ -85,13 +86,18 @@ int main(int argc, char* argv[]) {
 }
 
 
-// assume valid http request
+/* 
+ * assume valid http request
+ * parsed[0]: method
+ * parsed[1]: path
+ * parsed[2]: version
+ */
 void parseHttpReq(char* s, char parsed[3][BUF_SIZE]) {
   printf("%s", s);
 
   // get first line
   char firstLine[BUF_SIZE];
-  char* newLinePos = strchr(s, '\n');
+  char* newLinePos = strchr(s, '\r'); // all HTTP/1.1 header lines and the status/request line must end with CRLF (\r\n)
   size_t len = newLinePos - s;
   
   strncpy(firstLine, s, len);
@@ -116,6 +122,24 @@ void parseHttpReq(char* s, char parsed[3][BUF_SIZE]) {
   strcpy(parsed[row], start);
 }
 
+void* buildHttpRes(char* method, char* path, char* version) {
+  char res[BUF_SIZE];
+ 
+  if (strcmp(version, "HTTP/1.1")) {
+    // 505 HTTP Version Not Supported
+    printf("505\n");
+  } else if (strcmp(method, "GET")) {
+    // 501 Not Implemented
+    printf("501\n");
+  } else if (strcmp(path, "/")) {
+    // 404 Not Found
+    printf("404\n");
+  } else {
+    // 200 OK
+    printf("200\n");
+  }
+}
+
 void* handleClient(void* arg) {
   int bytesRecv;
   int clientFd = *(int*)arg;
@@ -129,4 +153,5 @@ void* handleClient(void* arg) {
 
   parseHttpReq(buf, parsed);
   printf("method: %s\npath: %s\nversion: %s\n", parsed[0], parsed[1], parsed[2]);
+  buildHttpRes(parsed[0], parsed[1], parsed[2]);
 }
