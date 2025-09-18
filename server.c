@@ -93,7 +93,7 @@ int main(int argc, char* argv[]) {
  * parsed[2]: version
  */
 void parseHttpReq(char* s, char parsed[3][BUF_SIZE]) {
-  printf("%s", s);
+  printf("\nHTTP request:\n\n%s\n", s);
 
   // get first line
   char firstLine[BUF_SIZE];
@@ -102,7 +102,6 @@ void parseHttpReq(char* s, char parsed[3][BUF_SIZE]) {
   
   strncpy(firstLine, s, len);
   firstLine[len] = '\0';
-  printf("first line: %s\n", firstLine);
 
   // extract method, path, and version from the first line
   int row = 0;
@@ -127,17 +126,31 @@ void* buildHttpRes(char* method, char* path, char* version) {
  
   if (strcmp(version, "HTTP/1.1")) {
     // 505 HTTP Version Not Supported
-    printf("505\n");
+    strcpy(res, "505 HTTP Version Not Supported");
   } else if (strcmp(method, "GET")) {
     // 501 Not Implemented
-    printf("501\n");
+    strcpy(res, "501 Not Implemented");
   } else if (strcmp(path, "/")) {
     // 404 Not Found
-    printf("404\n");
+    strcpy(res, "404 Not Found");
   } else {
     // 200 OK
-    printf("200\n");
+    char* okRes = "HTTP/1.1 200 OK\r\n"
+          "Content-Type: text/html; charset=UTF-8\r\n\r\n"
+          "<!DOCTYPE html>\r\n"
+          "<html>\r\n"
+          "<head>\r\n"
+          "<title>Testing Basic HTTP-SERVER</title>\r\n"
+          "</head>\r\n"
+          "<body>\r\n"
+          "Hello, Ahmed!\r\n"
+          "</body>\r\n"
+          "</html>\r\n";
+  
+    strcpy(res, okRes);
   }
+
+  printf("\nHTTP response:\n\n%s\n", res);
 }
 
 void* handleClient(void* arg) {
@@ -152,6 +165,5 @@ void* handleClient(void* arg) {
   }
 
   parseHttpReq(buf, parsed);
-  printf("method: %s\npath: %s\nversion: %s\n", parsed[0], parsed[1], parsed[2]);
   buildHttpRes(parsed[0], parsed[1], parsed[2]);
 }
