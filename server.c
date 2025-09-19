@@ -9,14 +9,14 @@
 #define BACKLOG 10 // maximum number of pending connections in the queue
 #define BUF_SIZE 4096 // 4 KB
 
-void parseHttpReq(char* s, char parsed[3][BUF_SIZE]);
+int parseHttpReq(char* s, char parsed[3][BUF_SIZE]);
 void* buildHttpRes(char* method, char* path, char* version);
 void* handleClient(void* arg);
 
 int main(int argc, char* argv[]) {
   // check usage
   if (argc != 2) {
-    perror("usage: ./server <port>\n");
+    printf("usage: ./server <port>\n");
     exit(EXIT_FAILURE);
   }
 
@@ -71,12 +71,12 @@ int main(int argc, char* argv[]) {
 
     if (pthread_create(&thread, NULL, handleClient, (void*)&clientFd)) {
       perror("thread creation failed");
-      exit(EXIT_FAILURE);
+      continue;
     }
 
     if (pthread_detach(thread)) {
       perror("thread detach failed");
-      exit(EXIT_FAILURE);
+      continue;
     }
   }
 
@@ -85,14 +85,12 @@ int main(int argc, char* argv[]) {
   return 0;
 }
 
-
 /* 
- * assume valid http request
  * parsed[0]: method
  * parsed[1]: path
  * parsed[2]: version
  */
-void parseHttpReq(char* s, char parsed[3][BUF_SIZE]) {
+int parseHttpReq(char* s, char parsed[3][BUF_SIZE]) {
   printf("\nHTTP request:\n\n%s\n", s);
 
   // get first line
@@ -118,7 +116,9 @@ void parseHttpReq(char* s, char parsed[3][BUF_SIZE]) {
     ++cur;
   }
   
-  strcpy(parsed[row], start);
+  strcpy(parsed[row++], start);
+
+  return row;
 }
 
 void* buildHttpRes(char* method, char* path, char* version) {
@@ -160,10 +160,14 @@ void* handleClient(void* arg) {
   char parsed[3][BUF_SIZE]; // 3 rows: method, path, and version
 
   if ((bytesRecv = recv(clientFd, buf, sizeof(buf), 0)) == -1) {
-    perror("recv failed");
-    exit(EXIT_FAILURE);
+    printf("recv failed\n");
+    pthread_exit(NULL);
   }
 
-  parseHttpReq(buf, parsed);
+  if (parseHttpReq(buf, parsed) != 3) {
+    printf("invalid request format\n");
+    pthread_exit(NULL);
+  }
+
   buildHttpRes(parsed[0], parsed[1], parsed[2]);
 }
