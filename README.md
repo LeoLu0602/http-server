@@ -7,7 +7,7 @@ A simple HTTP server implemented in C
 ## Features
 
 -   Handles GET / requests
--   Serves a very simple HTML file
+-   Serves HTML
 
 ## Setup
 

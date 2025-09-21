@@ -147,8 +147,8 @@ void* handleClient(void* arg) {
  * parsed[1]: path
  * parsed[2]: version
  *
- * return 3: good
- * return anything not 3: bad
+ * return 3: good! found method, path, and version (3 rows filled)
+ * return anything not 3: bad, some info missing 
 */
 int parseHttpReq(char* s, char parsed[3][BUF_SZ]) {
   // get first line
@@ -179,7 +179,8 @@ int parseHttpReq(char* s, char parsed[3][BUF_SZ]) {
 
     ++cur;
   }
-  
+ 
+  // don't forget the last part (ending with '\0' not ' ')!
   strcpy(parsed[row++], start);
 
   return row;
@@ -187,16 +188,12 @@ int parseHttpReq(char* s, char parsed[3][BUF_SZ]) {
 
 void buildHttpRes(char* method, char* path, char* version, char* res) {
   if (strcmp(version, "HTTP/1.1")) {
-    // 505 HTTP Version Not Supported
     strcpy(res, "505 HTTP Version Not Supported");
   } else if (strcmp(method, "GET")) {
-    // 501 Not Implemented
     strcpy(res, "501 Not Implemented");
   } else if (strcmp(path, "/")) {
-    // 404 Not Found
     strcpy(res, "404 Not Found");
   } else {
-    // 200 OK
     char* okRes = "HTTP/1.1 200 OK\r\n"
           "Content-Type: text/html; charset=UTF-8\r\n\r\n"
           "<!DOCTYPE html>\r\n"
