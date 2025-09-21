@@ -6,8 +6,8 @@ A simple HTTP server implemented in C
 
 ## Features
 
-- Handles GET / requests
-- Serves a very simple HTML file
+-   Handles GET / requests
+-   Serves a very simple HTML file
 
 ## Setup
 
@@ -18,4 +18,4 @@ make
 
 ## Demo
 
-<img src="demo.gif" width="640" height="360" />
+![demo](demo.gif)
