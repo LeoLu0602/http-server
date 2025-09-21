@@ -114,9 +114,21 @@ void* handleClient(void* arg) {
   buildHttpRes(parsed[0], parsed[1], parsed[2], res);
   printf("\nHTTP response:\n\n%s\n", res);
 
-  if (send(clientFd, res, strlen(res), 0) == -1) {
-    printf("send failed\n");
-    pthread_exit(NULL);
+  size_t bytesSent = 0;
+  size_t resLen = strlen(res);
+
+  while (bytesSent < resLen) {
+    /* ssize_t send(int sockfd, const void *buf, size_t len, int flags);
+     * bytes actually sent may be < len
+     */
+    ssize_t sent = send(clientFd, res + bytesSent, resLen - bytesSent, 0);
+
+    if (sent == -1) {
+      printf("send failed\n");
+      pthread_exit(NULL);
+    }
+
+    bytesSent += sent;
   }
  
   free(arg);
