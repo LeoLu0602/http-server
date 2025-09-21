@@ -18,4 +18,4 @@ make
 
 ## Demo
 
-![Demo](demo.gif)
+<img src="demo.gif" width="640" height="360" />
