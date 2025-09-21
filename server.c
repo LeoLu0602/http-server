@@ -103,6 +103,8 @@ void* handleClient(void* arg) {
     pthread_exit(NULL);
   }
 
+  printf("\nHTTP request:\n\n%s\n", buf);
+  
   if (parseHttpReq(buf, parsed) != 3) {
     printf("invalid request format\n");
     pthread_exit(NULL);
@@ -128,11 +130,15 @@ void* handleClient(void* arg) {
  * parsed[2]: version
  */
 int parseHttpReq(char* s, char parsed[3][BUF_SIZE]) {
-  printf("\nHTTP request:\n\n%s\n", s);
-
   // get first line
   char firstLine[BUF_SIZE];
-  char* newLinePos = strchr(s, '\r'); // all HTTP/1.1 header lines and the status/request line must end with CRLF (\r\n)
+  char* newLinePos; 
+
+  // all HTTP/1.1 header lines and the status/request line must end with CRLF (\r\n)
+  if (!(newLinePos = strchr(s, '\r')) || *(newLinePos + 1) != '\n') {
+    return 0;
+  }
+
   size_t len = newLinePos - s;
   
   strncpy(firstLine, s, len);
