@@ -138,10 +138,10 @@ void buildHttpRes(char* method, char* path, char* version, char* res) {
           "<!DOCTYPE html>\r\n"
           "<html>\r\n"
           "<head>\r\n"
-          "<title>Hi!</title>\r\n"
+          "<title>Hello Friend</title>\r\n"
           "</head>\r\n"
           "<body>\r\n"
-          "Hello!\r\n"
+          "Hello Friend\r\n"
           "</body>\r\n"
           "</html>\r\n";
   
