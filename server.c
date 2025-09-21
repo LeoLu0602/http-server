@@ -103,6 +103,7 @@ void* handleClient(void* arg) {
     pthread_exit(NULL);
   }
 
+  buf[bytesRecv] = '\0'; // recv doesn't automatically null-terminate
   printf("\nHTTP request:\n\n%s\n", buf);
   
   if (parseHttpReq(buf, parsed) != 3) {
