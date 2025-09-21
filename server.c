@@ -6,10 +6,10 @@
 #include <unistd.h>
 #include <string.h>
 
-#define BACKLOG 10 // maximum number of pending connections in the queue
-#define BUF_SIZE 4096 // 4 KB
+#define BACKLOG 10 // maximum number of pending connections in the queue (man listen for more info)
+#define BUF_SZ 4096 // 4 KB
 
-int parseHttpReq(char* s, char parsed[3][BUF_SIZE]);
+int parseHttpReq(char* s, char parsed[3][BUF_SZ]);
 void* handleClient(void* arg);
 void buildHttpRes(char* method, char* path, char* version, char* res);
 
@@ -23,6 +23,7 @@ int main(int argc, char* argv[]) {
   int port = atoi(argv[1]);
 
   // create server socket
+  
   /* AF_INET: IPv4 Internet protocols
    * SOCK_STREAM: TCP
    * 0: select the default protocol for the given domain and type
@@ -31,7 +32,7 @@ int main(int argc, char* argv[]) {
   struct sockaddr_in serverAddr; // sockaddr_in: IPv4
   
   if ((serverFd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-    perror("socket creation failed");
+    printf("socket creation failed\n");
     exit(EXIT_FAILURE);
   }
   
@@ -42,13 +43,13 @@ int main(int argc, char* argv[]) {
 
   // bind socket to port
   if (bind(serverFd, (const struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1) {
-    perror("bind failed");
+    printf("bind failed\n");
     exit(EXIT_FAILURE);
   }
 
   // listen for connections
   if (listen(serverFd, BACKLOG) == -1) {
-    perror("listen failed");
+    printf("listen failed\n");
     exit(EXIT_FAILURE);
   }
 
@@ -68,20 +69,22 @@ int main(int argc, char* argv[]) {
     */
 
     if ((*pClientFd = accept(serverFd, (struct sockaddr*)&clientAddr, &clientAddrLen)) == -1) {
-      perror("accept failed");
+      printf("accept failed\n");
       continue;
     }
 
     // create a new thread to handle client request
     pthread_t thread;
 
+    // NULL: default attributes
     if (pthread_create(&thread, NULL, handleClient, (void*)pClientFd)) {
-      perror("thread creation failed");
+      printf("thread creation failed\n");
       continue;
     }
-
+    
+    // when a detached thread terminates, its resources are automatically released
     if (pthread_detach(thread)) {
-      perror("thread detach failed");
+      printf("thread detach failed\n");
       continue;
     }
   }
@@ -94,10 +97,11 @@ int main(int argc, char* argv[]) {
 void* handleClient(void* arg) {
   int bytesRecv;
   int clientFd = *(int*)arg;
-  char buf[BUF_SIZE];
-  char parsed[3][BUF_SIZE]; // 3 rows: method, path, and version
-  char res[BUF_SIZE];
+  char buf[BUF_SZ];
+  char parsed[3][BUF_SZ]; // 3 rows: method, path, and version
+  char res[BUF_SZ]; // stores http response
 
+  // flags 0: no special options
   if ((bytesRecv = recv(clientFd, buf, sizeof(buf), 0)) == -1) {
     printf("recv failed\n");
     pthread_exit(NULL);
@@ -120,7 +124,8 @@ void* handleClient(void* arg) {
   while (bytesSent < resLen) {
     /* ssize_t send(int sockfd, const void *buf, size_t len, int flags);
      * bytes actually sent may be < len
-     */
+     * flags 0: default behavior
+    */
     ssize_t sent = send(clientFd, res + bytesSent, resLen - bytesSent, 0);
 
     if (sent == -1) {
@@ -141,14 +146,17 @@ void* handleClient(void* arg) {
  * parsed[0]: method
  * parsed[1]: path
  * parsed[2]: version
- */
-int parseHttpReq(char* s, char parsed[3][BUF_SIZE]) {
+ *
+ * return 3: good
+ * return anything not 3: bad
+*/
+int parseHttpReq(char* s, char parsed[3][BUF_SZ]) {
   // get first line
-  char firstLine[BUF_SIZE];
+  char firstLine[BUF_SZ];
   char* newLinePos; 
 
   // all HTTP/1.1 header lines and the status/request line must end with CRLF (\r\n)
-  if (!(newLinePos = strchr(s, '\r')) || *(newLinePos + 1) != '\n') {
+  if (!(newLinePos = strstr(s, "\r\n"))) {
     return 0;
   }
 
