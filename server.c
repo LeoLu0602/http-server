@@ -59,9 +59,15 @@ int main(int argc, char* argv[]) {
     // accept client connection
     struct sockaddr_in clientAddr;
     socklen_t clientAddrLen = sizeof(clientAddr);
-    int clientFd;
+    int* pClientFd = malloc(sizeof(int));
 
-    if ((clientFd = accept(serverFd, (struct sockaddr*)&clientAddr, &clientAddrLen)) == -1) {
+    /*
+     * Why int* pClientFd and not clientFd?
+     *
+     * If a new connection comes in before the thread reads it, clientFd may change. 
+    */
+
+    if ((*pClientFd = accept(serverFd, (struct sockaddr*)&clientAddr, &clientAddrLen)) == -1) {
       perror("accept failed");
       continue;
     }
@@ -69,7 +75,7 @@ int main(int argc, char* argv[]) {
     // create a new thread to handle client request
     pthread_t thread;
 
-    if (pthread_create(&thread, NULL, handleClient, (void*)&clientFd)) {
+    if (pthread_create(&thread, NULL, handleClient, (void*)pClientFd)) {
       perror("thread creation failed");
       continue;
     }
@@ -83,6 +89,37 @@ int main(int argc, char* argv[]) {
   close(serverFd);
 
   return 0;
+}
+
+void* handleClient(void* arg) {
+  int bytesRecv;
+  int clientFd = *(int*)arg;
+  char buf[BUF_SIZE];
+  char parsed[3][BUF_SIZE]; // 3 rows: method, path, and version
+  char res[BUF_SIZE];
+
+  if ((bytesRecv = recv(clientFd, buf, sizeof(buf), 0)) == -1) {
+    printf("recv failed\n");
+    pthread_exit(NULL);
+  }
+
+  if (parseHttpReq(buf, parsed) != 3) {
+    printf("invalid request format\n");
+    pthread_exit(NULL);
+  }
+
+  buildHttpRes(parsed[0], parsed[1], parsed[2], res);
+  printf("\nHTTP response:\n\n%s\n", res);
+
+  if (send(clientFd, res, strlen(res), 0) == -1) {
+    printf("send failed\n");
+    pthread_exit(NULL);
+  }
+ 
+  free(arg);
+  close(clientFd);
+  
+  return NULL;
 }
 
 /* 
@@ -149,32 +186,3 @@ void buildHttpRes(char* method, char* path, char* version, char* res) {
   }
 }
 
-void* handleClient(void* arg) {
-  int bytesRecv;
-  int clientFd = *(int*)arg;
-  char buf[BUF_SIZE];
-  char parsed[3][BUF_SIZE]; // 3 rows: method, path, and version
-  char res[BUF_SIZE];
-
-  if ((bytesRecv = recv(clientFd, buf, sizeof(buf), 0)) == -1) {
-    printf("recv failed\n");
-    pthread_exit(NULL);
-  }
-
-  if (parseHttpReq(buf, parsed) != 3) {
-    printf("invalid request format\n");
-    pthread_exit(NULL);
-  }
-
-  buildHttpRes(parsed[0], parsed[1], parsed[2], res);
-  printf("\nHTTP response:\n\n%s\n", res);
-
-  if (send(clientFd, res, strlen(res), 0) == -1) {
-    printf("send failed\n");
-    pthread_exit(NULL);
-  }
-  
-  close(clientFd);
-
-  return NULL;
-}
