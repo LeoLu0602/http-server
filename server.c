@@ -10,8 +10,8 @@
 #define BUF_SIZE 4096 // 4 KB
 
 int parseHttpReq(char* s, char parsed[3][BUF_SIZE]);
-void* buildHttpRes(char* method, char* path, char* version);
 void* handleClient(void* arg);
+void buildHttpRes(char* method, char* path, char* version, char* res);
 
 int main(int argc, char* argv[]) {
   // check usage
@@ -121,9 +121,7 @@ int parseHttpReq(char* s, char parsed[3][BUF_SIZE]) {
   return row;
 }
 
-void* buildHttpRes(char* method, char* path, char* version) {
-  char res[BUF_SIZE];
- 
+void buildHttpRes(char* method, char* path, char* version, char* res) {
   if (strcmp(version, "HTTP/1.1")) {
     // 505 HTTP Version Not Supported
     strcpy(res, "505 HTTP Version Not Supported");
@@ -140,17 +138,15 @@ void* buildHttpRes(char* method, char* path, char* version) {
           "<!DOCTYPE html>\r\n"
           "<html>\r\n"
           "<head>\r\n"
-          "<title>Testing Basic HTTP-SERVER</title>\r\n"
+          "<title>Hi!</title>\r\n"
           "</head>\r\n"
           "<body>\r\n"
-          "Hello, Ahmed!\r\n"
+          "Hello!\r\n"
           "</body>\r\n"
           "</html>\r\n";
   
     strcpy(res, okRes);
   }
-
-  printf("\nHTTP response:\n\n%s\n", res);
 }
 
 void* handleClient(void* arg) {
@@ -158,6 +154,7 @@ void* handleClient(void* arg) {
   int clientFd = *(int*)arg;
   char buf[BUF_SIZE];
   char parsed[3][BUF_SIZE]; // 3 rows: method, path, and version
+  char res[BUF_SIZE];
 
   if ((bytesRecv = recv(clientFd, buf, sizeof(buf), 0)) == -1) {
     printf("recv failed\n");
@@ -169,5 +166,15 @@ void* handleClient(void* arg) {
     pthread_exit(NULL);
   }
 
-  buildHttpRes(parsed[0], parsed[1], parsed[2]);
+  buildHttpRes(parsed[0], parsed[1], parsed[2], res);
+  printf("\nHTTP response:\n\n%s\n", res);
+
+  if (send(clientFd, res, strlen(res), 0) == -1) {
+    printf("send failed\n");
+    pthread_exit(NULL);
+  }
+  
+  close(clientFd);
+
+  return NULL;
 }
