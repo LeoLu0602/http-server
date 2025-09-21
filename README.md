@@ -18,4 +18,4 @@ make
 
 ## Demo
 
-![Demo](demo.png)
+![Demo](demo.gif)
