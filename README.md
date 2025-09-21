@@ -2,7 +2,7 @@
 
 ## About
 
-A simple HTTP server implemented in C.
+A simple HTTP server implemented in C
 
 ## Features
 
