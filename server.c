@@ -5,11 +5,12 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <string.h>
+#include <regex.h>
 
 #define BACKLOG 10 // maximum number of pending connections in the queue (man listen for more info)
 #define BUF_SZ 4096 // 4 KB
 
-int parseHttpReq(char* s, char parsed[3][BUF_SZ]);
+void parseHttpReq(char* s, char* method, char* path, char* version);
 void* handleClient(void* arg);
 void buildHttpRes(char* method, char* path, char* version, char* res);
 
@@ -98,7 +99,9 @@ void* handleClient(void* arg) {
   int bytesRecv;
   int clientFd = *(int*)arg;
   char buf[BUF_SZ];
-  char parsed[3][BUF_SZ]; // 3 rows: method, path, and version
+  char method[BUF_SZ];
+  char path[BUF_SZ];
+  char version[BUF_SZ];
   char res[BUF_SZ]; // stores http response
 
   // flags 0: no special options
@@ -109,13 +112,8 @@ void* handleClient(void* arg) {
 
   buf[bytesRecv] = '\0'; // recv doesn't automatically null-terminate
   printf("\nHTTP request:\n\n%s\n", buf);
-  
-  if (parseHttpReq(buf, parsed) != 3) {
-    printf("invalid request format\n");
-    pthread_exit(NULL);
-  }
-
-  buildHttpRes(parsed[0], parsed[1], parsed[2], res);
+  parseHttpReq(buf, method, path, version);
+  buildHttpRes(method, path, version, res);
   printf("\nHTTP response:\n\n%s\n", res);
 
   size_t bytesSent = 0;
@@ -142,48 +140,30 @@ void* handleClient(void* arg) {
   return NULL;
 }
 
-/* 
- * parsed[0]: method
- * parsed[1]: path
- * parsed[2]: version
- *
- * return 3: good! found method, path, and version (3 rows filled)
- * return anything not 3: bad, some info missing 
-*/
-int parseHttpReq(char* s, char parsed[3][BUF_SZ]) {
-  // get first line
-  char firstLine[BUF_SZ];
-  char* newLinePos; 
-
-  // all HTTP/1.1 header lines and the status/request line must end with CRLF (\r\n)
-  if (!(newLinePos = strstr(s, "\r\n"))) {
-    return 0;
-  }
-
-  size_t len = newLinePos - s;
+void parseHttpReq(char* s, char* method, char* path, char* version) {
+  // HTTP/1.1 requires \r\n (CRLF) at the end of every line
+  char *pattern = "^([A-Z]+) ([^ ]+) (HTTP/[0-9.]+)\r?\n";
+  regex_t regex;
+  regmatch_t matches[4]; // whole + 3 groups
   
-  strncpy(firstLine, s, len);
-  firstLine[len] = '\0';
-
-  // extract method, path, and version from the first line
-  int row = 0;
-  char* start = firstLine;
-  char* cur = firstLine;
-
-  while (*cur != '\0') {
-    if (*cur == ' ') {
-      *cur = '\0';
-      strcpy(parsed[row++], start);
-      start = cur + 1;
-    }
-
-    ++cur;
+  if (regcomp(&regex, pattern, REG_EXTENDED)) {
+    printf("failed to compile regex\n");
+    pthread_exit(NULL);
   }
- 
-  // don't forget the last part (ending with '\0' not ' ')!
-  strcpy(parsed[row++], start);
 
-  return row;
+  if (regexec(&regex, s, 4, matches, 0)) {
+    printf("no match found\n");
+    pthread_exit(NULL);
+  } else {
+    strncpy(method, s + matches[1].rm_so, matches[1].rm_eo - matches[1].rm_so);
+    method[matches[1].rm_eo - matches[1].rm_so] = '\0';
+    strncpy(path, s + matches[2].rm_so, matches[2].rm_eo - matches[2].rm_so);
+    path[matches[2].rm_eo - matches[2].rm_so] = '\0';
+    strncpy(version, s + matches[3].rm_so, matches[3].rm_eo - matches[3].rm_so);
+    version[matches[3].rm_eo - matches[3].rm_so] = '\0';
+  }
+
+  regfree(&regex);
 }
 
 void buildHttpRes(char* method, char* path, char* version, char* res) {
