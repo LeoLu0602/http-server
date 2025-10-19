@@ -168,28 +168,33 @@ void parseHttpReq(char* s, char* method, char* path, char* version) {
 
 void buildHttpRes(char* method, char* path, char* version, char* res) {
   if (strcmp(version, "HTTP/1.1")) {
-    strcpy(res, "505 HTTP Version Not Supported");
+    sprintf(res, "505 HTTP Version Not Supported");
   } else if (strcmp(method, "GET")) {
-    strcpy(res, "501 Not Implemented");
+    sprintf(res, "501 Not Implemented");
   } else {
     char fullPath[BUF_SZ];
+    char status[BUF_SZ]; // code msg
 
     sprintf(fullPath, "public%s", path);
     printf("fullPath: %s\n", fullPath);
+     
+    /*
+      char* okRes = "HTTP/1.1 200 OK\r\n"
+	    "Content-Type: text/html; charset=UTF-8\r\n\r\n"
+	    "<!DOCTYPE html>\r\n"
+	    "<html>\r\n"
+	    "<head>\r\n"
+	    "<title>Hello Friend</title>\r\n"
+	    "</head>\r\n"
+	    "<body>\r\n"
+	    "Hello Friend\r\n"
+	    "</body>\r\n"
+	    "</html>\r\n";
+    
+      strcpy(res, okRes);
+    */
 
-    char* okRes = "HTTP/1.1 200 OK\r\n"
-          "Content-Type: text/html; charset=UTF-8\r\n\r\n"
-          "<!DOCTYPE html>\r\n"
-          "<html>\r\n"
-          "<head>\r\n"
-          "<title>Hello Friend</title>\r\n"
-          "</head>\r\n"
-          "<body>\r\n"
-          "Hello Friend\r\n"
-          "</body>\r\n"
-          "</html>\r\n";
-  
-    strcpy(res, okRes);
+    sprintf(res, "HTTP/1.1 %s\r\n", status);
   }
 }
 
