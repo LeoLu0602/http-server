@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <regex.h>
+#include <limits.h>
 
 #define BACKLOG 10 // maximum number of pending connections in the queue (man listen for more info)
 #define BUF_SZ 4096 // 4 KB
@@ -172,29 +173,27 @@ void buildHttpRes(char* method, char* path, char* version, char* res) {
   } else if (strcmp(method, "GET")) {
     sprintf(res, "501 Not Implemented");
   } else {
-    char fullPath[BUF_SZ];
-    char status[BUF_SZ]; // code msg
+    char relativePath[PATH_MAX];
+    char resolvedPath[PATH_MAX];
 
-    sprintf(fullPath, "public%s", path);
-    printf("fullPath: %s\n", fullPath);
-     
-    /*
-      char* okRes = "HTTP/1.1 200 OK\r\n"
-	    "Content-Type: text/html; charset=UTF-8\r\n\r\n"
-	    "<!DOCTYPE html>\r\n"
-	    "<html>\r\n"
-	    "<head>\r\n"
-	    "<title>Hello Friend</title>\r\n"
-	    "</head>\r\n"
-	    "<body>\r\n"
-	    "Hello Friend\r\n"
-	    "</body>\r\n"
-	    "</html>\r\n";
+    sprintf(relativePath, "./public%s", path);
+    printf("relativePath: %s\n", relativePath);
+    realpath(relativePath, resolvedPath);
+    printf("resolvedPath: %s\n", resolvedPath);
     
-      strcpy(res, okRes);
-    */
-
-    sprintf(res, "HTTP/1.1 %s\r\n", status);
+    char* okRes = "HTTP/1.1 200 OK\r\n"
+	  "Content-Type: text/html; charset=UTF-8\r\n\r\n"
+	  "<!DOCTYPE html>\r\n"
+	  "<html>\r\n"
+	  "<head>\r\n"
+	  "<title>Hello Friend</title>\r\n"
+	  "</head>\r\n"
+	  "<body>\r\n"
+	  "Hello Friend\r\n"
+	  "</body>\r\n"
+	  "</html>\r\n";
+  
+    strcpy(res, okRes);
   }
 }
 
