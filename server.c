@@ -171,9 +171,12 @@ void buildHttpRes(char* method, char* path, char* version, char* res) {
     strcpy(res, "505 HTTP Version Not Supported");
   } else if (strcmp(method, "GET")) {
     strcpy(res, "501 Not Implemented");
-  } else if (strcmp(path, "/")) {
-    strcpy(res, "404 Not Found");
   } else {
+    char fullPath[BUF_SZ];
+
+    sprintf(fullPath, "public%s", path);
+    printf("fullPath: %s\n", fullPath);
+
     char* okRes = "HTTP/1.1 200 OK\r\n"
           "Content-Type: text/html; charset=UTF-8\r\n\r\n"
           "<!DOCTYPE html>\r\n"
