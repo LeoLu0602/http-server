@@ -169,31 +169,50 @@ void parseHttpReq(char* s, char* method, char* path, char* version) {
 
 void buildHttpRes(char* method, char* path, char* version, char* res) {
   if (strcmp(version, "HTTP/1.1")) {
-    sprintf(res, "505 HTTP Version Not Supported");
+    sprintf(res, "HTTP/1.1 505 HTTP Version Not Supported\r\n\r\n");
   } else if (strcmp(method, "GET")) {
-    sprintf(res, "501 Not Implemented");
+    sprintf(
+	res, 
+	"HTTP/1.1 501 Not Implemented\r\n\r\n");
   } else {
     char relativePath[PATH_MAX];
     char resolvedPath[PATH_MAX];
-
+    char publicPath[PATH_MAX];
+    
     sprintf(relativePath, "./public%s", path);
     printf("relativePath: %s\n", relativePath);
-    realpath(relativePath, resolvedPath);
+    
+    if (!realpath(relativePath, resolvedPath)) {
+      printf("realpath failed\n");
+      pthread_exit(NULL);
+    }
+
     printf("resolvedPath: %s\n", resolvedPath);
     
-    char* okRes = "HTTP/1.1 200 OK\r\n"
-	  "Content-Type: text/html; charset=UTF-8\r\n\r\n"
-	  "<!DOCTYPE html>\r\n"
-	  "<html>\r\n"
-	  "<head>\r\n"
-	  "<title>Hello Friend</title>\r\n"
-	  "</head>\r\n"
-	  "<body>\r\n"
-	  "Hello Friend\r\n"
-	  "</body>\r\n"
-	  "</html>\r\n";
-  
-    strcpy(res, okRes);
+    if (!realpath("./public", publicPath)) {
+      printf("realpath failed\n");
+      pthread_exit(NULL);
+    }
+
+    printf("publicPath: %s\n", publicPath);
+    
+    if (strncmp(resolvedPath, publicPath, strlen(publicPath))) {
+      sprintf(res, "HTTP/1.1 403 Forbidden\r\n");
+    } else {
+      char* okRes = "HTTP/1.1 200 OK\r\n"
+	    "Content-Type: text/html; charset=UTF-8\r\n\r\n"
+	    "<!DOCTYPE html>\r\n"
+	    "<html>\r\n"
+	    "<head>\r\n"
+	    "<title>Hello Friend</title>\r\n"
+	    "</head>\r\n"
+	    "<body>\r\n"
+	    "Hello Friend\r\n"
+	    "</body>\r\n"
+	    "</html>\r\n";
+    
+      strcpy(res, okRes);
+    }
   }
 }
 
