@@ -7,6 +7,7 @@
 #include <string.h>
 #include <regex.h>
 #include <limits.h>
+#include <sys/stat.h>
 
 #define BACKLOG 10 // maximum number of pending connections in the queue (man listen for more info)
 #define BUF_SZ 4096 // 4 KB
@@ -14,6 +15,7 @@
 void parseHttpReq(char* s, char* method, char* path, char* version);
 void* handleClient(void* arg);
 void buildHttpRes(char* method, char* path, char* version, char* res);
+long long getFileSize(char* filename);
 
 int main(int argc, char* argv[]) {
   // check usage
@@ -201,20 +203,28 @@ void buildHttpRes(char* method, char* path, char* version, char* res) {
     if (strncmp(resolvedPath, publicPath, strlen(publicPath))) {
       sprintf(res, "HTTP/1.1 403 Forbidden\r\n\r\n");
     } else {
-      char* okRes = "HTTP/1.1 200 OK\r\n"
-	    "Content-Type: text/html; charset=UTF-8\r\n\r\n"
-	    "<!DOCTYPE html>\r\n"
-	    "<html>\r\n"
-	    "<head>\r\n"
-	    "<title>Hello Friend</title>\r\n"
-	    "</head>\r\n"
-	    "<body>\r\n"
-	    "Hello Friend\r\n"
-	    "</body>\r\n"
-	    "</html>\r\n";
-    
-      strcpy(res, okRes);
+      char html[BUF_SZ] = "<html><head></head><body>Hi</body></html>";
+      
+      getFileSize(resolvedPath);
+      sprintf(
+	  res,
+	  "HTTP/1.1 200 OK\r\n"
+	  "Content-Type: text/html\r\n"
+	  "\r\n"
+	  "%s",
+	  html
+      );
     }
   }
+}
+
+long long getFileSize(char* filename) {
+  struct stat st;
+
+  if (stat(filename, &st)) {
+    return 0;
+  }
+
+  return (long long)st.st_size;
 }
 
