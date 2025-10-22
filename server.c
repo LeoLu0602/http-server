@@ -8,6 +8,7 @@
 #include <regex.h>
 #include <limits.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 
 #define BACKLOG 10 // maximum number of pending connections in the queue (man listen for more info)
 #define BUF_SZ 4096 // 4 KB
@@ -15,7 +16,9 @@
 void parseHttpReq(char* s, char* method, char* path, char* version);
 void* handleClient(void* arg);
 void buildHttpRes(char* method, char* path, char* version, char* res);
-long long getFileSize(char* filename);
+bool isFile(char* path);
+unsigned long long getFileSize(char* path);
+unsigned long long readFile(char* path, unsigned long long size, char* buffer);
 
 int main(int argc, char* argv[]) {
   // check usage
@@ -172,59 +175,109 @@ void parseHttpReq(char* s, char* method, char* path, char* version) {
 void buildHttpRes(char* method, char* path, char* version, char* res) {
   if (strcmp(version, "HTTP/1.1")) {
     sprintf(res, "HTTP/1.1 505 HTTP Version Not Supported\r\n\r\n");
-  } else if (strcmp(method, "GET")) {
-    sprintf(res, "HTTP/1.1 501 Not Implemented\r\n\r\n");
-  } else {
-    char relativePath[PATH_MAX];
-    char resolvedPath[PATH_MAX];
-    char publicPath[PATH_MAX];
-    
-    sprintf(relativePath, "./public%s", path);
-    printf("relativePath: %s\n", relativePath);
-    
-    if (!realpath(relativePath, resolvedPath)) {
-      printf("realpath failed\n");
-      sprintf(res, "HTTP/1.1 404 Not Found\r\n\r\n");
 
-      return;
-    }
-
-    printf("resolvedPath: %s\n", resolvedPath);
-    
-    if (!realpath("./public", publicPath)) {
-      printf("realpath failed\n");
-      sprintf(res, "HTTP/1.1 404 Not Found\r\n\r\n");
-
-      return;
-    }
-
-    printf("publicPath: %s\n", publicPath);
-    
-    if (strncmp(resolvedPath, publicPath, strlen(publicPath))) {
-      sprintf(res, "HTTP/1.1 403 Forbidden\r\n\r\n");
-    } else {
-      char html[BUF_SZ] = "<html><head></head><body>Hi</body></html>";
-      
-      getFileSize(resolvedPath);
-      sprintf(
-	  res,
-	  "HTTP/1.1 200 OK\r\n"
-	  "Content-Type: text/html\r\n"
-	  "\r\n"
-	  "%s",
-	  html
-      );
-    }
+    return;
   }
+
+  if (strcmp(method, "GET")) {
+    sprintf(res, "HTTP/1.1 501 Not Implemented\r\n\r\n");
+
+    return;
+  }
+
+  char relativePath[PATH_MAX];
+  char resolvedPath[PATH_MAX];
+  char publicPath[PATH_MAX];
+  
+  sprintf(relativePath, "./public%s", path);
+  printf("relativePath: %s\n", relativePath);
+  
+  if (!realpath(relativePath, resolvedPath)) {
+    printf("realpath failed\n");
+    sprintf(res, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
+
+    return;
+  }
+
+  printf("resolvedPath: %s\n", resolvedPath);
+  
+  if (!realpath("./public", publicPath)) {
+    printf("realpath failed\n");
+    sprintf(res, "HTTP/1.1 404 Not Found\r\n\r\n");
+
+    return;
+  }
+
+  printf("publicPath: %s\n", publicPath);
+ 
+  // make sure resolvedPath is inside public/ and not a folder
+  if (strncmp(resolvedPath, publicPath, strlen(publicPath)) || !isFile(resolvedPath)) {
+    sprintf(res, "HTTP/1.1 403 Forbidden\r\n\r\n");
+
+    return;
+  }
+
+  unsigned long long fileSize = getFileSize(resolvedPath);
+  char* buffer = (char*)malloc(fileSize);
+
+  printf("fileSize: %llu\n", fileSize);
+  
+  if (readFile(resolvedPath, fileSize, buffer) != fileSize) {
+    sprintf(res, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
+
+    return;
+  }
+  
+  sprintf(
+      res, 
+      "HTTP/1.1 200 OK\r\n"
+      "Content-Type: text/html\r\n"
+      "Content-Length: %llu\r\n"
+      "\r\n"
+      "%s",
+      fileSize,
+      buffer
+  );
+  free(buffer);
 }
 
-long long getFileSize(char* filename) {
+bool isFile(char* path) {
+  struct stat st;
+  
+  if (stat(path, &st)) {
+    printf("stat failed\n");
+
+    return false;
+  }
+
+  return S_ISREG(st.st_mode);
+}
+
+unsigned long long getFileSize(char* path) {
   struct stat st;
 
-  if (stat(filename, &st)) {
+  if (stat(path, &st) != 0) {
+    printf("stat failed\n");
+
     return 0;
   }
 
-  return (long long)st.st_size;
+  return (unsigned long long)st.st_size;
+}
+
+unsigned long long readFile(char* path, unsigned long long size, char* buffer) {
+  FILE* file = fopen(path, "rb");
+  
+  if (!file) {
+    printf("error opening file\n");
+
+    return -1;
+  }
+
+  unsigned long long bytesRead = fread(buffer, 1, size, file);
+
+  fclose(file);
+  
+  return bytesRead;
 }
 
