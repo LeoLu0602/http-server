@@ -19,6 +19,7 @@ void buildHttpRes(char* method, char* path, char* version, char* res);
 bool isFile(char* path);
 unsigned long long getFileSize(char* path);
 unsigned long long readFile(char* path, unsigned long long size, char* buffer);
+bool isPathValid(char* path);
 
 int main(int argc, char* argv[]) {
   // check usage
@@ -191,6 +192,12 @@ void buildHttpRes(char* method, char* path, char* version, char* res) {
   
   sprintf(relativePath, "./public%s", path);
   printf("relativePath: %s\n", relativePath);
+
+  if (!isPathValid(relativePath)) {
+    sprintf(res, "HTTP/1.1 404 Not Found\r\n\r\n");
+
+    return;
+  }
   
   if (!realpath(relativePath, resolvedPath)) {
     printf("realpath failed\n");
@@ -203,15 +210,15 @@ void buildHttpRes(char* method, char* path, char* version, char* res) {
   
   if (!realpath("./public", publicPath)) {
     printf("realpath failed\n");
-    sprintf(res, "HTTP/1.1 404 Not Found\r\n\r\n");
+    sprintf(res, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
 
     return;
   }
 
   printf("publicPath: %s\n", publicPath);
  
-  // make sure resolvedPath is inside public/ and not a folder
-  if (strncmp(resolvedPath, publicPath, strlen(publicPath)) || !isFile(resolvedPath)) {
+  // make sure resolvedPath is inside public/
+  if (strncmp(resolvedPath, publicPath, strlen(publicPath))) {
     sprintf(res, "HTTP/1.1 403 Forbidden\r\n\r\n");
 
     return;
@@ -279,5 +286,15 @@ unsigned long long readFile(char* path, unsigned long long size, char* buffer) {
   fclose(file);
   
   return bytesRead;
+}
+
+bool isPathValid(char* path) {
+  // test existence
+  if (access(path, F_OK)) {
+    return false;
+  }
+
+  // dose path lead to a file
+  return isFile(path);
 }
 
