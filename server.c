@@ -317,6 +317,28 @@ void getContentType(char* path, char* contentType) {
     strcpy(contentType, "text/css");
   } else if (strcmp(ext, "js") == 0) {
     strcpy(contentType, "text/javascript");
+  } else if (strcmp(ext, "gif") == 0) {
+    strcpy(contentType, "image/gif");
+  } else if (strcmp(ext, "ico") == 0) {
+    strcpy(contentType, "image/vnd.microsoft.icon");
+  } else if (strcmp(ext, "jpeg") == 0 || strcmp(ext, "jpg") == 0) {
+    strcpy(contentType, "image/jpeg");
+  } else if (strcmp(ext, "json") == 0) {
+    strcpy(contentType, "application/json");
+  } else if (strcmp(ext, "md") == 0) {
+    strcpy(contentType, "text/markdown");
+  } else if (strcmp(ext, "mp3") == 0) {
+    strcpy(contentType, "audio/mpeg");
+  } else if (strcmp(ext, "mp4") == 0) {
+    strcpy(contentType, "video/mp4");
+  } else if (strcmp(ext, "png") == 0) {
+    strcpy(contentType, "image/png");
+  } else if (strcmp(ext, "pdf") == 0) {
+    strcpy(contentType, "application/pdf");
+  } else if (strcmp(ext, "svg") == 0) {
+    strcpy(contentType, "image/svg+xml");
+  } else if (strcmp(ext, "txt") == 0) {
+    strcpy(contentType, "text/plain");
   }
 }
 
