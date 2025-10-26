@@ -12,6 +12,7 @@
 
 #define BACKLOG 10 // maximum number of pending connections in the queue (man listen for more info)
 #define BUF_SZ 4096 // 4 KB
+#define CONTENT_TYPE_MAX 128
 
 void parseHttpReq(char* s, char* method, char* path, char* version);
 void* handleClient(void* arg);
@@ -20,6 +21,7 @@ bool isFile(char* path);
 unsigned long long getFileSize(char* path);
 unsigned long long readFile(char* path, unsigned long long size, char* buffer);
 bool isPathValid(char* path);
+void getContentType(char* path, char* contentType);
 
 int main(int argc, char* argv[]) {
   // check usage
@@ -123,8 +125,8 @@ void* handleClient(void* arg) {
   buildHttpRes(method, path, version, res);
   printf("\nHTTP response:\n\n%s\n", res);
 
-  size_t bytesSent = 0;
-  size_t resLen = strlen(res);
+  unsigned long long bytesSent = 0;
+  unsigned long long resLen = strlen(res);
 
   while (bytesSent < resLen) {
     /* ssize_t send(int sockfd, const void *buf, size_t len, int flags);
@@ -226,8 +228,11 @@ void buildHttpRes(char* method, char* path, char* version, char* res) {
 
   unsigned long long fileSize = getFileSize(resolvedPath);
   char* buffer = (char*)malloc(fileSize);
-
+  char contentType[CONTENT_TYPE_MAX];
+  
   printf("fileSize: %llu\n", fileSize);
+  getContentType(resolvedPath, contentType);
+  printf("contentType: %s\n", contentType);
   
   if (readFile(resolvedPath, fileSize, buffer) != fileSize) {
     sprintf(res, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
@@ -238,10 +243,11 @@ void buildHttpRes(char* method, char* path, char* version, char* res) {
   sprintf(
       res, 
       "HTTP/1.1 200 OK\r\n"
-      "Content-Type: text/html\r\n"
+      "Content-Type: %s\r\n"
       "Content-Length: %llu\r\n"
       "\r\n"
       "%s",
+      contentType,
       fileSize,
       buffer
   );
@@ -296,5 +302,21 @@ bool isPathValid(char* path) {
 
   // dose path lead to a file
   return isFile(path);
+}
+
+void getContentType(char* path, char* contentType) {
+  char* ext;
+
+  if (!(ext = strrchr(path, '.'))) {
+    return;
+  }
+  
+  if (strcmp(++ext, "html") == 0 || strcmp(ext, "htm") == 0) {
+    strcpy(contentType, "text/html");
+  } else if (strcmp(ext, "css") == 0) {
+    strcpy(contentType, "text/css");
+  } else if (strcmp(ext, "js") == 0) {
+    strcpy(contentType, "text/javascript");
+  }
 }
 
