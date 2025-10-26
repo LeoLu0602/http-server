@@ -11,12 +11,14 @@
 #include <stdbool.h>
 
 #define BACKLOG 10 // maximum number of pending connections in the queue (man listen for more info)
-#define BUF_SZ 4096 // 4 KB
+#define BUF_SZ (4 * 1024) // 4 KB
+#define HEAD_MAX (64 * 1024) // 64 KB
 #define CONTENT_TYPE_MAX 128
+#define FILE_SZ_MAX (1024 * 1024) // 1 MB
 
 void parseHttpReq(char* s, char* method, char* path, char* version);
 void* handleClient(void* arg);
-void buildHttpRes(char* method, char* path, char* version, char* res);
+unsigned long long buildHttpRes(char* method, char* path, char* version, char* head, char* body);
 bool isFile(char* path);
 unsigned long long getFileSize(char* path);
 unsigned long long readFile(char* path, unsigned long long size, char* buffer);
@@ -56,7 +58,7 @@ int main(int argc, char* argv[]) {
     printf("bind failed\n");
     exit(EXIT_FAILURE);
   }
-
+  
   // listen for connections
   if (listen(serverFd, BACKLOG) == -1) {
     printf("listen failed\n");
@@ -71,13 +73,12 @@ int main(int argc, char* argv[]) {
     struct sockaddr_in clientAddr;
     socklen_t clientAddrLen = sizeof(clientAddr);
     int* pClientFd = malloc(sizeof(int));
-
+    
     /*
      * Why int* pClientFd and not clientFd?
      *
      * If a new connection comes in before the thread reads it, clientFd may change. 
     */
-
     if ((*pClientFd = accept(serverFd, (struct sockaddr*)&clientAddr, &clientAddrLen)) == -1) {
       printf("accept failed\n");
       continue;
@@ -111,7 +112,8 @@ void* handleClient(void* arg) {
   char method[BUF_SZ];
   char path[BUF_SZ];
   char version[BUF_SZ];
-  char res[BUF_SZ]; // stores http response
+  char head[HEAD_MAX];
+  char body[FILE_SZ_MAX];
 
   // flags 0: no special options
   if ((bytesRecv = recv(clientFd, buf, sizeof(buf), 0)) == -1) {
@@ -120,20 +122,37 @@ void* handleClient(void* arg) {
   }
 
   buf[bytesRecv] = '\0'; // recv doesn't automatically null-terminate
-  printf("\nHTTP request:\n\n%s\n", buf);
+  printf("\n%s\n", buf);
   parseHttpReq(buf, method, path, version);
-  buildHttpRes(method, path, version, res);
-  printf("\nHTTP response:\n\n%s\n", res);
+  
+  unsigned long long contentLen = buildHttpRes(method, path, version, head, body);
+
+  printf("\n%s\n", head);
 
   unsigned long long bytesSent = 0;
-  unsigned long long resLen = strlen(res);
+  unsigned long long headLen = strlen(head);
 
-  while (bytesSent < resLen) {
+  // send head (status line + headers)
+  while (bytesSent < headLen) {
     /* ssize_t send(int sockfd, const void *buf, size_t len, int flags);
      * bytes actually sent may be < len
      * flags 0: default behavior
     */
-    ssize_t sent = send(clientFd, res + bytesSent, resLen - bytesSent, 0);
+    ssize_t sent = send(clientFd, head + bytesSent, headLen - bytesSent, 0);
+
+    if (sent == -1) {
+      printf("send failed\n");
+      pthread_exit(NULL);
+    }
+
+    bytesSent += sent;
+  }
+  
+  // send body
+  bytesSent = 0;
+
+  while (bytesSent < contentLen) {
+    ssize_t sent = send(clientFd, body + bytesSent, contentLen - bytesSent, 0);
 
     if (sent == -1) {
       printf("send failed\n");
@@ -175,17 +194,17 @@ void parseHttpReq(char* s, char* method, char* path, char* version) {
   regfree(&regex);
 }
 
-void buildHttpRes(char* method, char* path, char* version, char* res) {
+unsigned long long buildHttpRes(char* method, char* path, char* version, char* head, char* body) {
   if (strcmp(version, "HTTP/1.1")) {
-    sprintf(res, "HTTP/1.1 505 HTTP Version Not Supported\r\n\r\n");
+    snprintf(head, HEAD_MAX, "HTTP/1.1 505 HTTP Version Not Supported\r\n\r\n");
 
-    return;
+    return 0;
   }
 
   if (strcmp(method, "GET")) {
-    sprintf(res, "HTTP/1.1 501 Not Implemented\r\n\r\n");
+    snprintf(head, HEAD_MAX, "HTTP/1.1 501 Not Implemented\r\n\r\n");
 
-    return;
+    return 0;
   }
 
   char relativePath[PATH_MAX];
@@ -196,62 +215,61 @@ void buildHttpRes(char* method, char* path, char* version, char* res) {
   printf("relativePath: %s\n", relativePath);
 
   if (!isPathValid(relativePath)) {
-    sprintf(res, "HTTP/1.1 404 Not Found\r\n\r\n");
-
-    return;
+    snprintf(head, HEAD_MAX, "HTTP/1.1 404 Not Found\r\n\r\n");
+    
+    return 0;
   }
   
   if (!realpath(relativePath, resolvedPath)) {
     printf("realpath failed\n");
-    sprintf(res, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
+    snprintf(head, HEAD_MAX, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
 
-    return;
+    return 0;
   }
 
   printf("resolvedPath: %s\n", resolvedPath);
   
   if (!realpath("./public", publicPath)) {
     printf("realpath failed\n");
-    sprintf(res, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
+    snprintf(head, HEAD_MAX, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
 
-    return;
+    return 0;
   }
 
   printf("publicPath: %s\n", publicPath);
  
   // make sure resolvedPath is inside public/
   if (strncmp(resolvedPath, publicPath, strlen(publicPath))) {
-    sprintf(res, "HTTP/1.1 403 Forbidden\r\n\r\n");
+    snprintf(head, HEAD_MAX, "HTTP/1.1 403 Forbidden\r\n\r\n");
 
-    return;
+    return 0;
   }
 
   unsigned long long fileSize = getFileSize(resolvedPath);
-  char* buffer = (char*)malloc(fileSize);
   char contentType[CONTENT_TYPE_MAX];
   
   printf("fileSize: %llu\n", fileSize);
   getContentType(resolvedPath, contentType);
   printf("contentType: %s\n", contentType);
   
-  if (readFile(resolvedPath, fileSize, buffer) != fileSize) {
-    sprintf(res, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
+  if (readFile(resolvedPath, fileSize, body) != fileSize) {
+    snprintf(head, HEAD_MAX, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
 
-    return;
+    return 0;
   }
   
-  sprintf(
-      res, 
+  snprintf(
+      head, 
+      HEAD_MAX, 
       "HTTP/1.1 200 OK\r\n"
       "Content-Type: %s\r\n"
       "Content-Length: %llu\r\n"
-      "\r\n"
-      "%s",
+      "\r\n",
       contentType,
-      fileSize,
-      buffer
+      fileSize
   );
-  free(buffer);
+
+  return fileSize;
 }
 
 bool isFile(char* path) {
