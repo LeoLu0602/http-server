@@ -11,7 +11,6 @@
 #include <stdbool.h>
 
 #define BACKLOG 10 // maximum number of pending connections in the queue (man listen for more info)
-#define BUF_SZ (4 * 1024) // 4 KB
 #define HEAD_MAX (64 * 1024) // 64 KB
 #define CONTENT_TYPE_MAX 128
 #define FILE_SZ_MAX (1024 * 1024) // 1 MB
@@ -108,10 +107,10 @@ int main(int argc, char* argv[]) {
 void* handleClient(void* arg) {
   int bytesRecv;
   int clientFd = *(int*)arg;
-  char buf[BUF_SZ];
-  char method[BUF_SZ];
-  char path[BUF_SZ];
-  char version[BUF_SZ];
+  char buf[1048576]; // 1024 * 1024 -> 1 MB
+  char method[16];
+  char path[8192];
+  char version[16];
   char head[HEAD_MAX];
   char body[FILE_SZ_MAX];
 
