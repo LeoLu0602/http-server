@@ -388,9 +388,9 @@ void* worker(void* arg) {
       pthread_cond_wait(&queueNotEmpty, &queueMutex);
     }
 
-    task_t task = taskQueue[queueFront++];  
+    task_t task = taskQueue[queueFront];  
     
-    queueFront %= TASK_QUEUE_SZ;
+    queueFront = (queueFront + 1) % TASK_QUEUE_SZ;
     --queueCnt;
     pthread_cond_signal(&queueNotFull);
     pthread_mutex_unlock(&queueMutex);
@@ -401,6 +401,17 @@ void* worker(void* arg) {
 }
 
 void submitTask(void* (*fn)(void* arg), void* arg) {
+  pthread_mutex_lock(&queueMutex);
 
+  while (queueCnt == TASK_QUEUE_SZ) {
+    pthread_cond_wait(&queueNotFull, &queueMutex);
+  }
+
+  taskQueue[queueRead].fn = fn;
+  taskQueue[queueRead].arg = arg;
+  queueRear = (queueRear + 1) % TASK_QUEUE_SZ;
+  ++queueCnt;
+  pthread_cond_signal(&queueNotEmpty);
+  pthread_mutex_unlock(&queueMutex);
 }
 
