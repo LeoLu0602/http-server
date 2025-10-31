@@ -86,10 +86,10 @@ int main(int argc, char* argv[]) {
   pthread_cond_init(&queueNotEmpty, NULL);
   pthread_cond_init(&queueNotFull, NULL);
 
-  pthread_t thread[THREAD_CNT];
+  pthread_t threads[THREAD_CNT];
 
   for (int i = 0; i < THREAD_CNT; ++i) {
-    pthread_create(&thread[i], NULL, worker, NULL);
+    pthread_create(&threads[i], NULL, worker, NULL);
   }
 
   // handle connections
@@ -112,10 +112,15 @@ int main(int argc, char* argv[]) {
     submitTask(handleClient, (void*)pClientFd);
   }
 
+  // cleanup
   close(serverFd);
   pthread_mutex_destroy(&queueMutex);
   pthread_cond_destroy(&queueNotEmpty);
   pthread_cond_destroy(&queueNotFull);
+
+  for (int i = 0; i < THREAD_CNT; ++i) {
+    pthread_detach(threads[i]);
+  }
 
   return 0;
 }
@@ -376,7 +381,23 @@ void getContentType(char* path, char* contentType) {
 }
 
 void* worker(void* arg) {
+  while (1) {
+    pthread_mutex_lock(&queueMutex);
 
+    while (queueCnt == 0) {
+      pthread_cond_wait(&queueNotEmpty, &queueMutex);
+    }
+
+    task_t task = taskQueue[queueFront++];  
+    
+    queueFront %= TASK_QUEUE_SZ;
+    --queueCnt;
+    pthread_cond_signal(&queueNotFull);
+    pthread_mutex_unlock(&queueMutex);
+    task.fn(task.arg);
+  }
+
+  return NULL;
 }
 
 void submitTask(void* (*fn)(void* arg), void* arg) {
