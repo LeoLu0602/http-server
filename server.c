@@ -407,8 +407,8 @@ void submitTask(void* (*fn)(void* arg), void* arg) {
     pthread_cond_wait(&queueNotFull, &queueMutex);
   }
 
-  taskQueue[queueRead].fn = fn;
-  taskQueue[queueRead].arg = arg;
+  taskQueue[queueRear].fn = fn;
+  taskQueue[queueRear].arg = arg;
   queueRear = (queueRear + 1) % TASK_QUEUE_SZ;
   ++queueCnt;
   pthread_cond_signal(&queueNotEmpty);
