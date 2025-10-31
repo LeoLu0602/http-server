@@ -14,6 +14,21 @@
 #define HEAD_MAX (64 * 1024) // 64 KB
 #define CONTENT_TYPE_MAX 128
 #define FILE_SZ_MAX (1024 * 1024) // 1 MB
+#define TASK_QUEUE_SZ 100
+#define THREAD_CNT 10
+
+typedef struct {
+  void* (*fn)(void *arg);
+  void* arg;
+} task_t;
+
+task_t taskQueue[TASK_QUEUE_SZ];
+int queueFront = 0;
+int queueRear = 0;
+int queueCnt = 0;
+pthread_mutex_t queueMutex;
+pthread_cond_t queueNotEmpty;
+pthread_cond_t queueNotFull;
 
 void parseHttpReq(char* s, char* method, char* path, char* version);
 void* handleClient(void* arg);
@@ -23,6 +38,8 @@ unsigned long long getFileSize(char* path);
 unsigned long long readFile(char* path, unsigned long long size, char* buffer);
 bool isPathValid(char* path);
 void getContentType(char* path, char* contentType);
+void* worker(void* arg);
+void submitTask(void* (*fn)(void* arg), void* arg);
 
 int main(int argc, char* argv[]) {
   // check usage
@@ -65,6 +82,15 @@ int main(int argc, char* argv[]) {
   }
 
   printf("server listening on port %d\n", port);
+  pthread_mutex_init(&queueMutex, NULL);
+  pthread_cond_init(&queueNotEmpty, NULL);
+  pthread_cond_init(&queueNotFull, NULL);
+
+  pthread_t thread[THREAD_CNT];
+
+  for (int i = 0; i < THREAD_CNT; ++i) {
+    pthread_create(&thread[i], NULL, worker, NULL);
+  }
 
   // handle connections
   while (1) {
@@ -83,23 +109,13 @@ int main(int argc, char* argv[]) {
       continue;
     }
 
-    // create a new thread to handle client request
-    pthread_t thread;
-
-    // NULL: default attributes
-    if (pthread_create(&thread, NULL, handleClient, (void*)pClientFd)) {
-      printf("thread creation failed\n");
-      continue;
-    }
-    
-    // when a detached thread terminates, its resources are automatically released
-    if (pthread_detach(thread)) {
-      printf("thread detach failed\n");
-      continue;
-    }
+    submitTask(handleClient, (void*)pClientFd);
   }
 
   close(serverFd);
+  pthread_mutex_destroy(&queueMutex);
+  pthread_cond_destroy(&queueNotEmpty);
+  pthread_cond_destroy(&queueNotFull);
 
   return 0;
 }
@@ -357,5 +373,13 @@ void getContentType(char* path, char* contentType) {
   } else if (strcmp(ext, "txt") == 0) {
     strcpy(contentType, "text/plain");
   }
+}
+
+void* worker(void* arg) {
+
+}
+
+void submitTask(void* (*fn)(void* arg), void* arg) {
+
 }
 
