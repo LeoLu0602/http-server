@@ -229,9 +229,9 @@ unsigned long long buildHttpRes(char* method, char* path, char* version, char* h
 
   char relativePath[PATH_MAX];
   char resolvedPath[PATH_MAX];
-  char publicPath[PATH_MAX];
+  char curPath[PATH_MAX];
   
-  sprintf(relativePath, "./public%s", path);
+  sprintf(relativePath, ".%s", path);
   printf("relativePath: %s\n", relativePath);
 
   if (!isPathValid(relativePath)) {
@@ -249,17 +249,17 @@ unsigned long long buildHttpRes(char* method, char* path, char* version, char* h
 
   printf("resolvedPath: %s\n", resolvedPath);
   
-  if (!realpath("./public", publicPath)) {
+  if (!realpath(".", curPath)) {
     printf("realpath failed\n");
     snprintf(head, HEAD_MAX, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
 
     return 0;
   }
 
-  printf("publicPath: %s\n", publicPath);
+  printf("curPath: %s\n", curPath);
  
-  // make sure resolvedPath is inside public/
-  if (strncmp(resolvedPath, publicPath, strlen(publicPath))) {
+  // make sure resolvedPath is inside ./
+  if (strncmp(resolvedPath, curPath, strlen(curPath))) {
     snprintf(head, HEAD_MAX, "HTTP/1.1 403 Forbidden\r\n\r\n");
 
     return 0;
@@ -272,6 +272,12 @@ unsigned long long buildHttpRes(char* method, char* path, char* version, char* h
   getContentType(resolvedPath, contentType);
   printf("contentType: %s\n", contentType);
   
+  if (strlen(contentType) == 0) {
+    snprintf(head, HEAD_MAX, "HTTP/1.1 415 Unsupported Media Type\r\n\r\n");
+
+    return 0;
+  }
+
   if (readFile(resolvedPath, fileSize, body) != fileSize) {
     snprintf(head, HEAD_MAX, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
 
@@ -377,6 +383,8 @@ void getContentType(char* path, char* contentType) {
     strcpy(contentType, "image/svg+xml");
   } else if (strcmp(ext, "txt") == 0) {
     strcpy(contentType, "text/plain");
+  } else {
+    strcpy(contentType, "");
   }
 }
 
@@ -414,4 +422,3 @@ void submitTask(void* (*fn)(void* arg), void* arg) {
   pthread_cond_signal(&queueNotEmpty);
   pthread_mutex_unlock(&queueMutex);
 }
-
