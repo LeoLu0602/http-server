@@ -356,35 +356,35 @@ void getContentType(char* path, char* contentType) {
   }
   
   if (strcmp(++ext, "html") == 0 || strcmp(ext, "htm") == 0) {
-    strcpy(contentType, "text/html");
+    strncpy(contentType, "text/html", sizeof("text/html"));
   } else if (strcmp(ext, "css") == 0) {
-    strcpy(contentType, "text/css");
+    strncpy(contentType, "text/css", sizeof("text/css"));
   } else if (strcmp(ext, "js") == 0) {
-    strcpy(contentType, "text/javascript");
+    strncpy(contentType, "text/javascript", sizeof("text/javascript"));
   } else if (strcmp(ext, "gif") == 0) {
-    strcpy(contentType, "image/gif");
+    strncpy(contentType, "image/gif", sizeof("image/gif"));
   } else if (strcmp(ext, "ico") == 0) {
-    strcpy(contentType, "image/vnd.microsoft.icon");
+    strncpy(contentType, "image/vnd.microsoft.icon", sizeof("image/vnd.microsoft.icon"));
   } else if (strcmp(ext, "jpeg") == 0 || strcmp(ext, "jpg") == 0) {
-    strcpy(contentType, "image/jpeg");
+    strncpy(contentType, "image/jpeg", sizeof("image/jpeg"));
   } else if (strcmp(ext, "json") == 0) {
-    strcpy(contentType, "application/json");
+    strncpy(contentType, "application/json", sizeof("application/json"));
   } else if (strcmp(ext, "md") == 0) {
-    strcpy(contentType, "text/markdown");
+    strncpy(contentType, "text/markdown", sizeof("text/markdown"));
   } else if (strcmp(ext, "mp3") == 0) {
-    strcpy(contentType, "audio/mpeg");
+    strncpy(contentType, "audio/mpeg", sizeof("audio/mpeg"));
   } else if (strcmp(ext, "mp4") == 0) {
-    strcpy(contentType, "video/mp4");
+    strncpy(contentType, "video/mp4", sizeof("video/mp4"));
   } else if (strcmp(ext, "png") == 0) {
-    strcpy(contentType, "image/png");
+    strncpy(contentType, "image/png", sizeof("image/png"));
   } else if (strcmp(ext, "pdf") == 0) {
-    strcpy(contentType, "application/pdf");
+    strncpy(contentType, "application/pdf", sizeof("application/pdf"));
   } else if (strcmp(ext, "svg") == 0) {
-    strcpy(contentType, "image/svg+xml");
+    strncpy(contentType, "image/svg+xml", sizeof("image/svg+xml"));
   } else if (strcmp(ext, "txt") == 0) {
-    strcpy(contentType, "text/plain");
+    strncpy(contentType, "text/plain", sizeof("text/plain"));
   } else {
-    strcpy(contentType, "");
+    strncpy(contentType, "", sizeof(""));
   }
 }
 
