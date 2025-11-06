@@ -231,7 +231,7 @@ unsigned long long buildHttpRes(char* method, char* path, char* version, char* h
   char resolvedPath[PATH_MAX];
   char curPath[PATH_MAX];
   
-  sprintf(relativePath, ".%s", path);
+  snprintf(relativePath, PATH_MAX, ".%s", path);
   printf("relativePath: %s\n", relativePath);
 
   if (!isPathValid(relativePath)) {
