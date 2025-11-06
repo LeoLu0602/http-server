@@ -356,35 +356,35 @@ void getContentType(char* path, char* contentType) {
   }
   
   if (strcmp(++ext, "html") == 0 || strcmp(ext, "htm") == 0) {
-    strncpy(contentType, "text/html", sizeof("text/html"));
+    strncpy(contentType, "text/html", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "css") == 0) {
-    strncpy(contentType, "text/css", sizeof("text/css"));
+    strncpy(contentType, "text/css", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "js") == 0) {
-    strncpy(contentType, "text/javascript", sizeof("text/javascript"));
+    strncpy(contentType, "text/javascript", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "gif") == 0) {
-    strncpy(contentType, "image/gif", sizeof("image/gif"));
+    strncpy(contentType, "image/gif", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "ico") == 0) {
-    strncpy(contentType, "image/vnd.microsoft.icon", sizeof("image/vnd.microsoft.icon"));
+    strncpy(contentType, "image/vnd.microsoft.icon", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "jpeg") == 0 || strcmp(ext, "jpg") == 0) {
-    strncpy(contentType, "image/jpeg", sizeof("image/jpeg"));
+    strncpy(contentType, "image/jpeg", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "json") == 0) {
-    strncpy(contentType, "application/json", sizeof("application/json"));
+    strncpy(contentType, "application/json", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "md") == 0) {
-    strncpy(contentType, "text/markdown", sizeof("text/markdown"));
+    strncpy(contentType, "text/markdown", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "mp3") == 0) {
-    strncpy(contentType, "audio/mpeg", sizeof("audio/mpeg"));
+    strncpy(contentType, "audio/mpeg", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "mp4") == 0) {
-    strncpy(contentType, "video/mp4", sizeof("video/mp4"));
+    strncpy(contentType, "video/mp4", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "png") == 0) {
-    strncpy(contentType, "image/png", sizeof("image/png"));
+    strncpy(contentType, "image/png", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "pdf") == 0) {
-    strncpy(contentType, "application/pdf", sizeof("application/pdf"));
+    strncpy(contentType, "application/pdf", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "svg") == 0) {
-    strncpy(contentType, "image/svg+xml", sizeof("image/svg+xml"));
+    strncpy(contentType, "image/svg+xml", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "txt") == 0) {
-    strncpy(contentType, "text/plain", sizeof("text/plain"));
+    strncpy(contentType, "text/plain", CONTENT_TYPE_MAX - 1);
   } else {
-    strncpy(contentType, "", sizeof(""));
+    strncpy(contentType, "", CONTENT_TYPE_MAX - 1);
   }
 }
 
