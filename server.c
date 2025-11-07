@@ -369,6 +369,8 @@ void getContentType(char* path, char* contentType) {
   char* ext;
 
   if (!(ext = strrchr(path, '.'))) {
+    strncpy(contentType, "", CONTENT_TYPE_MAX - 1);
+
     return;
   }
   
