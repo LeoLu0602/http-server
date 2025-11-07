@@ -157,7 +157,7 @@ void* handleClient(void* arg) {
   parseHttpReq(buf, method, path, version);
   
   unsigned long long contentLen = buildHttpRes(method, path, version, head, body);
-
+  
   printf("\n%s\n", head);
 
   unsigned long long bytesSent = 0;
@@ -287,6 +287,12 @@ unsigned long long buildHttpRes(char* method, char* path, char* version, char* h
     snprintf(head, HEAD_MAX, "HTTP/1.1 415 Unsupported Media Type\r\n\r\n");
 
     return 0;
+  }
+
+  if (fileSize > FILE_SZ_MAX) {
+    snprintf(head, HEAD_MAX, "HTTP/1.1 413 Content Too Large\r\n\r\n");
+
+    return 0; // not gonna read files larger than limit
   }
 
   if (readFile(resolvedPath, fileSize, body) != fileSize) {
