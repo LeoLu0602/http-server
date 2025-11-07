@@ -44,11 +44,22 @@ void submitTask(void* (*fn)(void* arg), void* arg);
 int main(int argc, char* argv[]) {
   // check usage
   if (argc != 2) {
-    printf("usage: ./server <port>\n");
+    fprintf(stderr, "usage: ./server <port>\n");
+    exit(EXIT_FAILURE);
+  }
+  
+  char* end;
+  long port = strtol(argv[1], &end, 10);
+
+  if (*end != '\0') {
+    fprintf(stderr, "port should contain only digits\n");
     exit(EXIT_FAILURE);
   }
 
-  int port = atoi(argv[1]);
+  if (port < 1024 || port > 65535) {
+    fprintf(stderr, "port is out of range\n");
+    exit(EXIT_FAILURE);
+  }
 
   // create server socket
   
@@ -60,7 +71,7 @@ int main(int argc, char* argv[]) {
   struct sockaddr_in serverAddr; // sockaddr_in: IPv4
   
   if ((serverFd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-    printf("socket creation failed\n");
+    fprintf(stderr, "socket creation failed\n");
     exit(EXIT_FAILURE);
   }
   
@@ -71,17 +82,17 @@ int main(int argc, char* argv[]) {
 
   // bind socket to port
   if (bind(serverFd, (const struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1) {
-    printf("bind failed\n");
+    fprintf(stderr, "bind failed\n");
     exit(EXIT_FAILURE);
   }
   
   // listen for connections
   if (listen(serverFd, BACKLOG) == -1) {
-    printf("listen failed\n");
+    fprintf(stderr, "listen failed\n");
     exit(EXIT_FAILURE);
   }
 
-  printf("server listening on port %d\n", port);
+  printf("server listening on port %ld\n", port);
   pthread_mutex_init(&queueMutex, NULL);
   pthread_cond_init(&queueNotEmpty, NULL);
   pthread_cond_init(&queueNotFull, NULL);
@@ -105,7 +116,7 @@ int main(int argc, char* argv[]) {
      * If a new connection comes in before the thread reads it, clientFd may change. 
     */
     if ((*pClientFd = accept(serverFd, (struct sockaddr*)&clientAddr, &clientAddrLen)) == -1) {
-      printf("accept failed\n");
+      fprintf(stderr, "accept failed\n");
       continue;
     }
 
@@ -137,7 +148,7 @@ void* handleClient(void* arg) {
 
   // flags 0: no special options
   if ((bytesRecv = recv(clientFd, buf, sizeof(buf), 0)) == -1) {
-    printf("recv failed\n");
+    fprintf(stderr, "recv failed\n");
     pthread_exit(NULL);
   }
 
@@ -161,7 +172,7 @@ void* handleClient(void* arg) {
     ssize_t sent = send(clientFd, head + bytesSent, headLen - bytesSent, 0);
 
     if (sent == -1) {
-      printf("send failed\n");
+      fprintf(stderr, "send failed\n");
       pthread_exit(NULL);
     }
 
@@ -175,7 +186,7 @@ void* handleClient(void* arg) {
     ssize_t sent = send(clientFd, body + bytesSent, contentLen - bytesSent, 0);
 
     if (sent == -1) {
-      printf("send failed\n");
+      fprintf(stderr, "send failed\n");
       pthread_exit(NULL);
     }
 
@@ -195,12 +206,12 @@ void parseHttpReq(char* s, char* method, char* path, char* version) {
   regmatch_t matches[4]; // whole + 3 groups
   
   if (regcomp(&regex, pattern, REG_EXTENDED)) {
-    printf("failed to compile regex\n");
+    fprintf(stderr, "failed to compile regex\n");
     pthread_exit(NULL);
   }
 
   if (regexec(&regex, s, 4, matches, 0)) {
-    printf("no match found\n");
+    fprintf(stderr, "no match found\n");
     pthread_exit(NULL);
   } else {
     strncpy(method, s + matches[1].rm_so, matches[1].rm_eo - matches[1].rm_so);
@@ -231,7 +242,7 @@ unsigned long long buildHttpRes(char* method, char* path, char* version, char* h
   char resolvedPath[PATH_MAX];
   char curPath[PATH_MAX];
   
-  sprintf(relativePath, ".%s", path);
+  snprintf(relativePath, PATH_MAX, ".%s", path);
   printf("relativePath: %s\n", relativePath);
 
   if (!isPathValid(relativePath)) {
@@ -241,7 +252,7 @@ unsigned long long buildHttpRes(char* method, char* path, char* version, char* h
   }
   
   if (!realpath(relativePath, resolvedPath)) {
-    printf("realpath failed\n");
+    fprintf(stderr, "realpath failed\n");
     snprintf(head, HEAD_MAX, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
 
     return 0;
@@ -250,7 +261,7 @@ unsigned long long buildHttpRes(char* method, char* path, char* version, char* h
   printf("resolvedPath: %s\n", resolvedPath);
   
   if (!realpath(".", curPath)) {
-    printf("realpath failed\n");
+    fprintf(stderr, "realpath failed\n");
     snprintf(head, HEAD_MAX, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
 
     return 0;
@@ -302,7 +313,7 @@ bool isFile(char* path) {
   struct stat st;
   
   if (stat(path, &st)) {
-    printf("stat failed\n");
+    fprintf(stderr, "stat failed\n");
 
     return false;
   }
@@ -314,7 +325,7 @@ unsigned long long getFileSize(char* path) {
   struct stat st;
 
   if (stat(path, &st) != 0) {
-    printf("stat failed\n");
+    fprintf(stderr, "stat failed\n");
 
     return 0;
   }
@@ -326,7 +337,7 @@ unsigned long long readFile(char* path, unsigned long long size, char* buffer) {
   FILE* file = fopen(path, "rb");
   
   if (!file) {
-    printf("error opening file\n");
+    fprintf(stderr, "error opening file\n");
 
     return -1;
   }
@@ -356,35 +367,35 @@ void getContentType(char* path, char* contentType) {
   }
   
   if (strcmp(++ext, "html") == 0 || strcmp(ext, "htm") == 0) {
-    strcpy(contentType, "text/html");
+    strncpy(contentType, "text/html", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "css") == 0) {
-    strcpy(contentType, "text/css");
+    strncpy(contentType, "text/css", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "js") == 0) {
-    strcpy(contentType, "text/javascript");
+    strncpy(contentType, "text/javascript", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "gif") == 0) {
-    strcpy(contentType, "image/gif");
+    strncpy(contentType, "image/gif", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "ico") == 0) {
-    strcpy(contentType, "image/vnd.microsoft.icon");
+    strncpy(contentType, "image/vnd.microsoft.icon", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "jpeg") == 0 || strcmp(ext, "jpg") == 0) {
-    strcpy(contentType, "image/jpeg");
+    strncpy(contentType, "image/jpeg", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "json") == 0) {
-    strcpy(contentType, "application/json");
+    strncpy(contentType, "application/json", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "md") == 0) {
-    strcpy(contentType, "text/markdown");
+    strncpy(contentType, "text/markdown", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "mp3") == 0) {
-    strcpy(contentType, "audio/mpeg");
+    strncpy(contentType, "audio/mpeg", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "mp4") == 0) {
-    strcpy(contentType, "video/mp4");
+    strncpy(contentType, "video/mp4", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "png") == 0) {
-    strcpy(contentType, "image/png");
+    strncpy(contentType, "image/png", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "pdf") == 0) {
-    strcpy(contentType, "application/pdf");
+    strncpy(contentType, "application/pdf", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "svg") == 0) {
-    strcpy(contentType, "image/svg+xml");
+    strncpy(contentType, "image/svg+xml", CONTENT_TYPE_MAX - 1);
   } else if (strcmp(ext, "txt") == 0) {
-    strcpy(contentType, "text/plain");
+    strncpy(contentType, "text/plain", CONTENT_TYPE_MAX - 1);
   } else {
-    strcpy(contentType, "");
+    strncpy(contentType, "", CONTENT_TYPE_MAX - 1);
   }
 }
 
