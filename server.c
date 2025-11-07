@@ -9,7 +9,6 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <stdbool.h>
-#include <errno.h>
 
 #define BACKLOG 10 // maximum number of pending connections in the queue (man listen for more info)
 #define HEAD_MAX (64 * 1024) // 64 KB
@@ -50,16 +49,15 @@ int main(int argc, char* argv[]) {
   }
   
   char* end;
+  long port = strtol(argv[1], &end, 10);
 
-  errno = 0; // reset any old error status
-
-  int port = strtol(argv[1], &end, 10);
-
-  if (errno == ERANGE) {
-    fprintf(stderr, "out of range\n");
+  if (*end != '\0') {
+    fprintf(stderr, "port should contain only digits\n");
     exit(EXIT_FAILURE);
-  } else if (end == argv[1]) {
-    fprintf(stderr, "no digits were found\n");
+  }
+
+  if (port < 1024 || port > 65535) {
+    fprintf(stderr, "port is out of range\n");
     exit(EXIT_FAILURE);
   }
 
@@ -94,7 +92,7 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  printf("server listening on port %d\n", port);
+  printf("server listening on port %ld\n", port);
   pthread_mutex_init(&queueMutex, NULL);
   pthread_cond_init(&queueNotEmpty, NULL);
   pthread_cond_init(&queueNotFull, NULL);
