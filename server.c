@@ -9,6 +9,7 @@
 #include <limits.h>
 #include <sys/stat.h>
 #include <stdbool.h>
+#include <errno.h>
 
 #define BACKLOG 10 // maximum number of pending connections in the queue (man listen for more info)
 #define HEAD_MAX (64 * 1024) // 64 KB
@@ -47,8 +48,20 @@ int main(int argc, char* argv[]) {
     printf("usage: ./server <port>\n");
     exit(EXIT_FAILURE);
   }
+  
+  char* end;
 
-  int port = atoi(argv[1]);
+  errno = 0; // reset any old error status
+
+  int port = strtol(argv[1], &end, 10);
+
+  if (errno == ERANGE) {
+    printf("out of range\n");
+    exit(EXIT_FAILURE);
+  } else if (end == argv[1]) {
+    printf("no digits were found\n");
+    exit(EXIT_FAILURE);
+  }
 
   // create server socket
   
