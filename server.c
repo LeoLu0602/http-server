@@ -45,7 +45,7 @@ void submitTask(void* (*fn)(void* arg), void* arg);
 int main(int argc, char* argv[]) {
   // check usage
   if (argc != 2) {
-    printf("usage: ./server <port>\n");
+    fprintf(stderr, "usage: ./server <port>\n");
     exit(EXIT_FAILURE);
   }
   
@@ -56,10 +56,10 @@ int main(int argc, char* argv[]) {
   int port = strtol(argv[1], &end, 10);
 
   if (errno == ERANGE) {
-    printf("out of range\n");
+    fprintf(stderr, "out of range\n");
     exit(EXIT_FAILURE);
   } else if (end == argv[1]) {
-    printf("no digits were found\n");
+    fprintf(stderr, "no digits were found\n");
     exit(EXIT_FAILURE);
   }
 
@@ -73,7 +73,7 @@ int main(int argc, char* argv[]) {
   struct sockaddr_in serverAddr; // sockaddr_in: IPv4
   
   if ((serverFd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-    printf("socket creation failed\n");
+    fprintf(stderr, "socket creation failed\n");
     exit(EXIT_FAILURE);
   }
   
@@ -84,13 +84,13 @@ int main(int argc, char* argv[]) {
 
   // bind socket to port
   if (bind(serverFd, (const struct sockaddr*)&serverAddr, sizeof(serverAddr)) == -1) {
-    printf("bind failed\n");
+    fprintf(stderr, "bind failed\n");
     exit(EXIT_FAILURE);
   }
   
   // listen for connections
   if (listen(serverFd, BACKLOG) == -1) {
-    printf("listen failed\n");
+    fprintf(stderr, "listen failed\n");
     exit(EXIT_FAILURE);
   }
 
@@ -118,7 +118,7 @@ int main(int argc, char* argv[]) {
      * If a new connection comes in before the thread reads it, clientFd may change. 
     */
     if ((*pClientFd = accept(serverFd, (struct sockaddr*)&clientAddr, &clientAddrLen)) == -1) {
-      printf("accept failed\n");
+      fprintf(stderr, "accept failed\n");
       continue;
     }
 
@@ -150,7 +150,7 @@ void* handleClient(void* arg) {
 
   // flags 0: no special options
   if ((bytesRecv = recv(clientFd, buf, sizeof(buf), 0)) == -1) {
-    printf("recv failed\n");
+    fprintf(stderr, "recv failed\n");
     pthread_exit(NULL);
   }
 
@@ -174,7 +174,7 @@ void* handleClient(void* arg) {
     ssize_t sent = send(clientFd, head + bytesSent, headLen - bytesSent, 0);
 
     if (sent == -1) {
-      printf("send failed\n");
+      fprintf(stderr, "send failed\n");
       pthread_exit(NULL);
     }
 
@@ -188,7 +188,7 @@ void* handleClient(void* arg) {
     ssize_t sent = send(clientFd, body + bytesSent, contentLen - bytesSent, 0);
 
     if (sent == -1) {
-      printf("send failed\n");
+      fprintf(stderr, "send failed\n");
       pthread_exit(NULL);
     }
 
@@ -208,12 +208,12 @@ void parseHttpReq(char* s, char* method, char* path, char* version) {
   regmatch_t matches[4]; // whole + 3 groups
   
   if (regcomp(&regex, pattern, REG_EXTENDED)) {
-    printf("failed to compile regex\n");
+    fprintf(stderr, "failed to compile regex\n");
     pthread_exit(NULL);
   }
 
   if (regexec(&regex, s, 4, matches, 0)) {
-    printf("no match found\n");
+    fprintf(stderr, "no match found\n");
     pthread_exit(NULL);
   } else {
     strncpy(method, s + matches[1].rm_so, matches[1].rm_eo - matches[1].rm_so);
@@ -254,7 +254,7 @@ unsigned long long buildHttpRes(char* method, char* path, char* version, char* h
   }
   
   if (!realpath(relativePath, resolvedPath)) {
-    printf("realpath failed\n");
+    fprintf(stderr, "realpath failed\n");
     snprintf(head, HEAD_MAX, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
 
     return 0;
@@ -263,7 +263,7 @@ unsigned long long buildHttpRes(char* method, char* path, char* version, char* h
   printf("resolvedPath: %s\n", resolvedPath);
   
   if (!realpath(".", curPath)) {
-    printf("realpath failed\n");
+    fprintf(stderr, "realpath failed\n");
     snprintf(head, HEAD_MAX, "HTTP/1.1 500 Internal Server Error\r\n\r\n");
 
     return 0;
@@ -315,7 +315,7 @@ bool isFile(char* path) {
   struct stat st;
   
   if (stat(path, &st)) {
-    printf("stat failed\n");
+    fprintf(stderr, "stat failed\n");
 
     return false;
   }
@@ -327,7 +327,7 @@ unsigned long long getFileSize(char* path) {
   struct stat st;
 
   if (stat(path, &st) != 0) {
-    printf("stat failed\n");
+    fprintf(stderr, "stat failed\n");
 
     return 0;
   }
@@ -339,7 +339,7 @@ unsigned long long readFile(char* path, unsigned long long size, char* buffer) {
   FILE* file = fopen(path, "rb");
   
   if (!file) {
-    printf("error opening file\n");
+    fprintf(stderr, "error opening file\n");
 
     return -1;
   }
